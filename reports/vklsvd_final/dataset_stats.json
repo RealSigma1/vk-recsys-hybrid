@@ -1,0 +1,23 @@
+{
+  "subset": "ur0.01_ir0.01",
+  "train_start_week": 20,
+  "train_end_week": 24,
+  "raw_train_interactions": 801636,
+  "raw_validation_interactions": 170111,
+  "raw_test_interactions": 154461,
+  "train_positive_interactions": 318432,
+  "validation_positive_interactions": 68214,
+  "test_positive_interactions": 60418,
+  "filtered_train_interactions": 271810,
+  "filtered_validation_interactions": 35600,
+  "filtered_test_interactions": 27906,
+  "filtered_train_users": 31296,
+  "filtered_train_items": 9279,
+  "max_eval_users": 100,
+  "users_metadata_rows": 10000000,
+  "items_metadata_rows": 19627601,
+  "seeds": [
+    42,
+    43
+  ]
+}
