@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 from dataclasses import asdict
 import json
@@ -8,10 +6,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_DIR = PROJECT_ROOT / "src"
-VENDOR_DIR = PROJECT_ROOT / ".vendor"
-for candidate in [str(VENDOR_DIR), str(SRC_DIR)]:
-    if candidate not in sys.path:
-        sys.path.insert(0, candidate)
+source_dir_path = str(SRC_DIR)
+if source_dir_path not in sys.path:
+    sys.path.insert(0, source_dir_path)
 
 import pandas as pd
 
@@ -26,10 +23,9 @@ from vk_recsys_hybrid.vklsvd import (
     prepare_positive_interactions,
 )
 
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the VK-LSVD hybrid recommender benchmark on a real subset."
+        description="Run the VK-LSVD hybrid recommender benchmark."
     )
     parser.add_argument("--data-root", required=True, help="Path to local VK-LSVD root.")
     parser.add_argument("--subset", default="ur0.01_ir0.01")
@@ -47,10 +43,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reports-dir", default="reports/vklsvd")
     return parser.parse_args()
 
-
 def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
-
 
 def build_subset_paths(
     data_root: Path,
@@ -65,7 +59,6 @@ def build_subset_paths(
     val_path = str(data_root / "subsamples" / subset / "validation" / "week_25.parquet")
     test_path = str(data_root / "subsamples" / subset / "test" / "week_26.parquet")
     return train_paths, val_path, test_path
-
 
 def main() -> int:
     args = parse_args()
@@ -181,14 +174,15 @@ def main() -> int:
     )
 
     all_results = []
-    for split_name, eval_df in {
+    evaluation_splits = {
         "validation": val_filtered,
         "test": test_filtered,
-    }.items():
+    }
+    for split_name, eval_interactions in evaluation_splits.items():
         print(f"Running benchmark for {split_name}...")
         split_results = run_fixed_split_benchmark(
             train_df=train_filtered,
-            eval_df=eval_df,
+            eval_df=eval_interactions,
             embeddings=embeddings,
             user_column=user_column,
             item_column=item_column,
@@ -246,7 +240,6 @@ def main() -> int:
     print(f"Per-run results saved to: {runs_path}")
     print(f"Summary saved to: {summary_csv_path}")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
