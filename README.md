@@ -32,7 +32,7 @@ reports/
   vklsvd_final/          итоговый отчёт и результаты экспериментов
 src/
   vk_recsys_hybrid/      код моделей и бенчмарка
-run_vklsvd_benchmark.py  основной скрипт запуска
+run_benchmark.py  основной скрипт запуска
 ```
 
 ## Какие данные нужны
@@ -55,7 +55,7 @@ data/raw/VK-LSVD/
 Запуск основного эксперимента:
 
 ```powershell
-.venv\Scripts\python.exe run_vklsvd_benchmark.py `
+.venv\Scripts\python.exe run_benchmark.py `
   --data-root data/raw/VK-LSVD `
   --subset ur0.01_ir0.01 `
   --train-start-week 20 `
