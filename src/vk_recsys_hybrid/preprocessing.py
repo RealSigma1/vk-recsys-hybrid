@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 import pandas as pd
-
 
 def filter_interactions(
     interactions: pd.DataFrame,

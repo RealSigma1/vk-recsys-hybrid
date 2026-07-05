@@ -1,1 +1,1 @@
-"""Utilities for the VK-LSVD hybrid recommender benchmark."""
+"""VK-LSVD benchmark package."""

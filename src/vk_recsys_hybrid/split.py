@@ -1,8 +1,5 @@
-from __future__ import annotations
-
 import numpy as np
 import pandas as pd
-
 
 def random_user_holdout_split(
     interactions: pd.DataFrame,
@@ -15,16 +12,16 @@ def random_user_holdout_split(
     if not 0.0 < test_fraction < 1.0:
         raise ValueError("test_fraction must be between 0 and 1.")
 
-    rng = np.random.default_rng(seed)
-    train_parts: list[pd.DataFrame] = []
-    test_parts: list[pd.DataFrame] = []
+    random_generator = np.random.default_rng(seed)
+    train_parts = []
+    test_parts = []
 
-    for _, group in interactions.groupby(user_column, sort=False):
-        if len(group) < 2:
+    for user_id, user_interactions in interactions.groupby(user_column, sort=False):
+        if len(user_interactions) < 2:
             continue
 
-        indices = group.index.to_numpy(copy=True)
-        rng.shuffle(indices)
+        indices = user_interactions.index.to_numpy(copy=True)
+        random_generator.shuffle(indices)
         n_test = max(min_test_items, int(round(len(indices) * test_fraction)))
         n_test = min(n_test, len(indices) - 1)
 

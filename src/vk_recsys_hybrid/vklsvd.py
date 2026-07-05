@@ -1,10 +1,7 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 
 POSITIVE_SIGNAL_COLUMNS = [
     "like",
@@ -14,11 +11,9 @@ POSITIVE_SIGNAL_COLUMNS = [
     "open_comments",
 ]
 
-
 def load_many_parquets(paths: list[str]) -> pd.DataFrame:
     frames = [pd.read_parquet(path) for path in paths]
     return pd.concat(frames, ignore_index=True)
-
 
 def prepare_positive_interactions(
     interactions: pd.DataFrame,
@@ -48,25 +43,23 @@ def prepare_positive_interactions(
     positives = positives.drop_duplicates().reset_index(drop=True)
     return positives
 
-
 def build_metadata_embeddings(
     items_metadata: pd.DataFrame,
     item_column: str,
     n_author_buckets: int = 32,
 ) -> pd.DataFrame:
-    df = items_metadata[[item_column, "author_id", "duration"]].copy()
-    df[item_column] = df[item_column].astype(str)
+    metadata_table = items_metadata[[item_column, "author_id", "duration"]].copy()
+    metadata_table[item_column] = metadata_table[item_column].astype(str)
 
-    author_bucket = (df["author_id"].astype(np.uint64) % n_author_buckets).to_numpy()
-    features = np.zeros((len(df), n_author_buckets + 1), dtype=np.float32)
-    features[np.arange(len(df)), author_bucket] = 1.0
-    features[:, -1] = df["duration"].astype(np.float32).to_numpy() / 255.0
+    author_bucket = (metadata_table["author_id"].astype(np.uint64) % n_author_buckets).to_numpy()
+    features = np.zeros((len(metadata_table), n_author_buckets + 1), dtype=np.float32)
+    features[np.arange(len(metadata_table)), author_bucket] = 1.0
+    features[:, -1] = metadata_table["duration"].astype(np.float32).to_numpy() / 255.0
 
     feature_columns = [f"dim_{index}" for index in range(features.shape[1])]
-    result = pd.DataFrame(features, columns=feature_columns)
-    result.insert(0, item_column, df[item_column].to_numpy())
-    return result
-
+    embeddings_table = pd.DataFrame(features, columns=feature_columns)
+    embeddings_table.insert(0, item_column, metadata_table[item_column].to_numpy())
+    return embeddings_table
 
 def build_content_embedding_views(
     embeddings_path: str,
@@ -82,16 +75,15 @@ def build_content_embedding_views(
     filtered_item_ids = item_ids[keep_mask]
     filtered_embeddings = embeddings[keep_mask]
 
-    results: dict[str, pd.DataFrame] = {}
-    for n_dims in dimensions:
-        sliced = filtered_embeddings[:, :n_dims]
-        columns = [f"dim_{index}" for index in range(n_dims)]
-        df = pd.DataFrame(sliced, columns=columns)
-        df.insert(0, item_column, filtered_item_ids)
-        results[f"multimodal_{n_dims}d"] = df
+    results = {}
+    for embedding_dim in dimensions:
+        sliced_embeddings = filtered_embeddings[:, :embedding_dim]
+        feature_columns = [f"dim_{index}" for index in range(embedding_dim)]
+        embedding_view = pd.DataFrame(sliced_embeddings, columns=feature_columns)
+        embedding_view.insert(0, item_column, filtered_item_ids)
+        results[f"multimodal_{embedding_dim}d"] = embedding_view
 
     return results
-
 
 def cache_filtered_embeddings(
     source_embeddings_path: str,

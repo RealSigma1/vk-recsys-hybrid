@@ -1,7 +1,6 @@
 from dataclasses import asdict, dataclass
 
-
-@dataclass(slots=True)
+@dataclass
 class BenchmarkConfig:
     interactions_path: str
     user_column: str

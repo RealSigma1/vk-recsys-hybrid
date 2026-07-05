@@ -1,15 +1,11 @@
-from __future__ import annotations
-
 import math
 from collections import defaultdict
 
-
 def group_items_by_user(rows: list[tuple[str, str]]) -> dict[str, set[str]]:
-    grouped: dict[str, set[str]] = defaultdict(set)
+    grouped = defaultdict(set)
     for user_id, item_id in rows:
         grouped[user_id].add(item_id)
     return dict(grouped)
-
 
 def precision_at_k(recommended: list[str], relevant: set[str], k: int) -> float:
     if k <= 0:
@@ -17,13 +13,11 @@ def precision_at_k(recommended: list[str], relevant: set[str], k: int) -> float:
     hits = sum(1 for item_id in recommended[:k] if item_id in relevant)
     return hits / k
 
-
 def recall_at_k(recommended: list[str], relevant: set[str], k: int) -> float:
     if not relevant:
         return 0.0
     hits = sum(1 for item_id in recommended[:k] if item_id in relevant)
     return hits / len(relevant)
-
 
 def average_precision_at_k(recommended: list[str], relevant: set[str], k: int) -> float:
     if not relevant:
@@ -39,7 +33,6 @@ def average_precision_at_k(recommended: list[str], relevant: set[str], k: int) -
     denominator = min(len(relevant), k)
     return score / denominator if denominator else 0.0
 
-
 def ndcg_at_k(recommended: list[str], relevant: set[str], k: int) -> float:
     dcg = 0.0
     for index, item_id in enumerate(recommended[:k], start=1):
@@ -53,10 +46,8 @@ def ndcg_at_k(recommended: list[str], relevant: set[str], k: int) -> float:
     idcg = sum(1.0 / math.log2(index + 1.0) for index in range(1, ideal_hits + 1))
     return dcg / idcg if idcg else 0.0
 
-
 def hit_rate_at_k(recommended: list[str], relevant: set[str], k: int) -> float:
     return 1.0 if any(item_id in relevant for item_id in recommended[:k]) else 0.0
-
 
 def evaluate_ranking(
     recommendations: dict[str, list[str]],
@@ -68,12 +59,12 @@ def evaluate_ranking(
     if not users:
         raise ValueError("No overlapping users between recommendations and ground truth.")
 
-    precision_scores: list[float] = []
-    recall_scores: list[float] = []
-    map_scores: list[float] = []
-    ndcg_scores: list[float] = []
-    hit_scores: list[float] = []
-    recommended_items: set[str] = set()
+    precision_scores = []
+    recall_scores = []
+    map_scores = []
+    ndcg_scores = []
+    hit_scores = []
+    recommended_items = set()
 
     for user_id in users:
         recommended = recommendations[user_id]

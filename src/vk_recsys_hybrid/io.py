@@ -1,10 +1,7 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 
 def read_table(path: str) -> pd.DataFrame:
     file_path = Path(path)
@@ -24,36 +21,38 @@ def read_table(path: str) -> pd.DataFrame:
 
     raise ValueError(f"Unsupported table format: {file_path.suffix}")
 
-
 def load_interactions(path: str, user_column: str, item_column: str) -> pd.DataFrame:
-    df = read_table(path)
-    missing = [column for column in [user_column, item_column] if column not in df.columns]
+    interactions_table = read_table(path)
+    missing = [
+        column for column in [user_column, item_column] if column not in interactions_table.columns
+    ]
     if missing:
         raise ValueError(f"Missing columns in interactions table: {missing}")
 
-    interactions = df[[user_column, item_column]].dropna().copy()
+    interactions = interactions_table[[user_column, item_column]].dropna().copy()
     interactions[user_column] = interactions[user_column].astype(str)
     interactions[item_column] = interactions[item_column].astype(str)
     interactions = interactions.drop_duplicates()
     return interactions
-
 
 def load_embeddings(path: str, item_column: str) -> pd.DataFrame:
     file_path = Path(path)
     suffix = file_path.suffix.lower()
 
     if suffix in {".csv", ".tsv", ".parquet"}:
-        df = read_table(path)
-        if item_column not in df.columns:
+        embeddings_table = read_table(path)
+        if item_column not in embeddings_table.columns:
             raise ValueError(
                 f"Embedding file {path} must contain the item column '{item_column}'."
             )
-        feature_columns = [column for column in df.columns if column != item_column]
+        feature_columns = [
+            column for column in embeddings_table.columns if column != item_column
+        ]
         if not feature_columns:
             raise ValueError(f"Embedding file {path} has no numeric feature columns.")
-        result = df[[item_column] + feature_columns].copy()
-        result[item_column] = result[item_column].astype(str)
-        return result
+        prepared_embeddings = embeddings_table[[item_column] + feature_columns].copy()
+        prepared_embeddings[item_column] = prepared_embeddings[item_column].astype(str)
+        return prepared_embeddings
 
     if suffix == ".npy":
         raise ValueError(
@@ -76,8 +75,8 @@ def load_embeddings(path: str, item_column: str) -> pd.DataFrame:
             raise ValueError("item_ids and embeddings must have matching first dimension.")
 
         feature_columns = [f"dim_{index}" for index in range(embeddings.shape[1])]
-        df = pd.DataFrame(embeddings, columns=feature_columns)
-        df.insert(0, item_column, item_ids)
-        return df
+        embeddings_table = pd.DataFrame(embeddings, columns=feature_columns)
+        embeddings_table.insert(0, item_column, item_ids)
+        return embeddings_table
 
     raise ValueError(f"Unsupported embedding format: {file_path.suffix}")

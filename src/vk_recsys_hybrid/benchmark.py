@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 import pandas as pd
@@ -13,8 +11,7 @@ from vk_recsys_hybrid.recommenders import (
     PopularityRecommender,
 )
 
-
-@dataclass(slots=True)
+@dataclass
 class BenchmarkResult:
     seed: int
     split_name: str
@@ -28,10 +25,8 @@ class BenchmarkResult:
     coverage_at_k: float
     evaluated_users: float
 
-
 def _build_recommendations(model, users: list[str], top_k: int) -> dict[str, list[str]]:
     return {user_id: model.recommend(user_id, top_k) for user_id in users}
-
 
 def _sample_eval_users(
     ground_truth: dict[str, set[str]],
@@ -39,21 +34,20 @@ def _sample_eval_users(
     bootstrap_user_fraction: float,
     max_users: int | None = None,
 ) -> dict[str, set[str]]:
-    users = sorted(ground_truth.keys())
-    sample_size = len(users)
+    all_users = sorted(ground_truth.keys())
+    sample_size = len(all_users)
     if bootstrap_user_fraction < 1.0:
-        sample_size = max(1, int(round(len(users) * bootstrap_user_fraction)))
+        sample_size = max(1, int(round(len(all_users) * bootstrap_user_fraction)))
     if max_users is not None:
         sample_size = min(sample_size, max_users)
-    if sample_size >= len(users):
-        sampled_users = set(users)
+    if sample_size >= len(all_users):
+        sampled_users = set(all_users)
     else:
-        sampled = pd.Series(users).sample(
+        sampled_users_series = pd.Series(all_users).sample(
             n=sample_size, random_state=seed, replace=False
         )
-        sampled_users = set(sampled.tolist())
+        sampled_users = set(sampled_users_series.tolist())
     return {user_id: items for user_id, items in ground_truth.items() if user_id in sampled_users}
-
 
 def run_fixed_split_benchmark(
     train_df: pd.DataFrame,
@@ -73,15 +67,16 @@ def run_fixed_split_benchmark(
     )
     catalog_size = int(train_df[item_column].astype(str).nunique())
 
-    trained_models: dict[tuple[str, str], object] = {}
-    baseline_models = {
-        "popularity": PopularityRecommender(user_column=user_column, item_column=item_column),
-        "item_knn_cf": ItemKNNCFRecommender(user_column=user_column, item_column=item_column),
-        "item_jaccard_cf": ItemJaccardCFRecommender(
-            user_column=user_column, item_column=item_column
+    trained_models = {}
+    baseline_models = [
+        ("popularity", PopularityRecommender(user_column=user_column, item_column=item_column)),
+        ("item_knn_cf", ItemKNNCFRecommender(user_column=user_column, item_column=item_column)),
+        (
+            "item_jaccard_cf",
+            ItemJaccardCFRecommender(user_column=user_column, item_column=item_column),
         ),
-    }
-    for model_name, model in baseline_models.items():
+    ]
+    for model_name, model in baseline_models:
         trained_models[(model_name, "-")] = model.fit(train_df)
 
     for embedding_name, embedding_df in embeddings.items():
@@ -107,7 +102,7 @@ def run_fixed_split_benchmark(
         ).fit(train_df)
         trained_models[("hybrid_knn", embedding_name)] = hybrid_model
 
-    results: list[BenchmarkResult] = []
+    results = []
     for seed in seeds:
         sampled_ground_truth = _sample_eval_users(
             ground_truth=ground_truth,
@@ -115,10 +110,10 @@ def run_fixed_split_benchmark(
             bootstrap_user_fraction=bootstrap_user_fraction,
             max_users=max_eval_users,
         )
-        users = sorted(sampled_ground_truth.keys())
+        eval_users = sorted(sampled_ground_truth.keys())
 
         for (model_name, embedding_name), model in trained_models.items():
-            recommendations = _build_recommendations(model, users, top_k)
+            recommendations = _build_recommendations(model, eval_users, top_k)
             metrics = evaluate_ranking(
                 recommendations, sampled_ground_truth, top_k, catalog_size
             )
@@ -133,7 +128,6 @@ def run_fixed_split_benchmark(
             )
 
     return results
-
 
 def run_single_seed_benchmark(
     interactions: pd.DataFrame,
@@ -169,7 +163,6 @@ def run_single_seed_benchmark(
         bootstrap_user_fraction=1.0,
         max_eval_users=None,
     )
-
 
 def aggregate_results(results_df: pd.DataFrame) -> pd.DataFrame:
     metric_columns = [

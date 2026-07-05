@@ -1,11 +1,8 @@
-from __future__ import annotations
-
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-
 
 def _normalize_scores(scores: dict[str, float]) -> dict[str, float]:
     if not scores:
@@ -20,8 +17,7 @@ def _normalize_scores(scores: dict[str, float]) -> dict[str, float]:
         for key, value in scores.items()
     }
 
-
-@dataclass(slots=True)
+@dataclass
 class BaseRecommender:
     user_column: str
     item_column: str
@@ -32,8 +28,7 @@ class BaseRecommender:
     def recommend(self, user_id: str, k: int) -> list[str]:
         raise NotImplementedError
 
-
-@dataclass(slots=True)
+@dataclass
 class PopularityRecommender(BaseRecommender):
     popularity: list[str] | None = None
     user_history: dict[str, set[str]] | None = None
@@ -52,8 +47,7 @@ class PopularityRecommender(BaseRecommender):
         seen = self.user_history.get(user_id, set()) if self.user_history else set()
         return [item_id for item_id in (self.popularity or []) if item_id not in seen][:k]
 
-
-@dataclass(slots=True)
+@dataclass
 class ItemKNNCFRecommender(BaseRecommender):
     item_neighbors: dict[str, dict[str, float]] | None = None
     item_popularity: dict[str, int] | None = None
@@ -61,26 +55,26 @@ class ItemKNNCFRecommender(BaseRecommender):
     fallback_items: list[str] | None = None
 
     def fit(self, interactions: pd.DataFrame) -> "ItemKNNCFRecommender":
-        user_history_series = (
+        user_history_by_user = (
             interactions.groupby(self.user_column)[self.item_column]
             .agg(lambda items: set(items.astype(str)))
         )
-        self.user_history = user_history_series.to_dict()
+        self.user_history = user_history_by_user.to_dict()
 
         item_popularity = Counter(interactions[self.item_column].astype(str).tolist())
-        co_counts: dict[str, Counter[str]] = defaultdict(Counter)
+        co_counts = defaultdict(Counter)
 
-        for items in self.user_history.values():
-            item_list = list(items)
-            for anchor in item_list:
-                for other in item_list:
-                    if anchor == other:
+        for user_items in self.user_history.values():
+            item_list = list(user_items)
+            for item_id in item_list:
+                for related_item_id in item_list:
+                    if item_id == related_item_id:
                         continue
-                    co_counts[anchor][other] += 1
+                    co_counts[item_id][related_item_id] += 1
 
-        neighbors: dict[str, dict[str, float]] = {}
+        neighbors = {}
         for item_id, related in co_counts.items():
-            scores: dict[str, float] = {}
+            scores = {}
             for other_item, overlap in related.items():
                 denom = np.sqrt(item_popularity[item_id] * item_popularity[other_item])
                 if denom > 0:
@@ -89,12 +83,12 @@ class ItemKNNCFRecommender(BaseRecommender):
 
         self.item_neighbors = neighbors
         self.item_popularity = dict(item_popularity)
-        self.fallback_items = [item for item, _ in item_popularity.most_common()]
+        self.fallback_items = [item_id for item_id, item_count in item_popularity.most_common()]
         return self
 
     def score_items(self, user_id: str) -> dict[str, float]:
         seen = self.user_history.get(user_id, set()) if self.user_history else set()
-        scores: defaultdict[str, float] = defaultdict(float)
+        scores = defaultdict(float)
 
         for item_id in seen:
             for neighbor_id, similarity in self.item_neighbors.get(item_id, {}).items():
@@ -117,8 +111,7 @@ class ItemKNNCFRecommender(BaseRecommender):
 
         return recommendations[:k]
 
-
-@dataclass(slots=True)
+@dataclass
 class ItemJaccardCFRecommender(BaseRecommender):
     item_neighbors: dict[str, dict[str, float]] | None = None
     item_popularity: dict[str, int] | None = None
@@ -126,26 +119,26 @@ class ItemJaccardCFRecommender(BaseRecommender):
     fallback_items: list[str] | None = None
 
     def fit(self, interactions: pd.DataFrame) -> "ItemJaccardCFRecommender":
-        user_history_series = (
+        user_history_by_user = (
             interactions.groupby(self.user_column)[self.item_column]
             .agg(lambda items: set(items.astype(str)))
         )
-        self.user_history = user_history_series.to_dict()
+        self.user_history = user_history_by_user.to_dict()
 
         item_popularity = Counter(interactions[self.item_column].astype(str).tolist())
-        co_counts: dict[str, Counter[str]] = defaultdict(Counter)
+        co_counts = defaultdict(Counter)
 
-        for items in self.user_history.values():
-            item_list = list(items)
-            for anchor in item_list:
-                for other in item_list:
-                    if anchor == other:
+        for user_items in self.user_history.values():
+            item_list = list(user_items)
+            for item_id in item_list:
+                for related_item_id in item_list:
+                    if item_id == related_item_id:
                         continue
-                    co_counts[anchor][other] += 1
+                    co_counts[item_id][related_item_id] += 1
 
-        neighbors: dict[str, dict[str, float]] = {}
+        neighbors = {}
         for item_id, related in co_counts.items():
-            scores: dict[str, float] = {}
+            scores = {}
             for other_item, overlap in related.items():
                 union_size = item_popularity[item_id] + item_popularity[other_item] - overlap
                 if union_size > 0:
@@ -154,12 +147,12 @@ class ItemJaccardCFRecommender(BaseRecommender):
 
         self.item_neighbors = neighbors
         self.item_popularity = dict(item_popularity)
-        self.fallback_items = [item for item, _ in item_popularity.most_common()]
+        self.fallback_items = [item_id for item_id, item_count in item_popularity.most_common()]
         return self
 
     def score_items(self, user_id: str) -> dict[str, float]:
         seen = self.user_history.get(user_id, set()) if self.user_history else set()
-        scores: defaultdict[str, float] = defaultdict(float)
+        scores = defaultdict(float)
 
         for item_id in seen:
             for neighbor_id, similarity in self.item_neighbors.get(item_id, {}).items():
@@ -182,8 +175,7 @@ class ItemJaccardCFRecommender(BaseRecommender):
 
         return recommendations[:k]
 
-
-@dataclass(slots=True)
+@dataclass
 class ContentKNNRecommender(BaseRecommender):
     embeddings: pd.DataFrame
     embedding_column: str
@@ -194,34 +186,37 @@ class ContentKNNRecommender(BaseRecommender):
     item_index: dict[str, int] | None = None
 
     def fit(self, interactions: pd.DataFrame) -> "ContentKNNRecommender":
-        histories = (
+        user_history_by_user = (
             interactions.groupby(self.user_column)[self.item_column]
             .agg(lambda items: set(items.astype(str)))
         )
-        self.user_history = histories.to_dict()
+        self.user_history = user_history_by_user.to_dict()
 
         available_items = set(interactions[self.item_column].astype(str))
         feature_columns = [
             column for column in self.embeddings.columns if column != self.embedding_column
         ]
-        filtered = self.embeddings[
+        available_embeddings = self.embeddings[
             self.embeddings[self.embedding_column].astype(str).isin(available_items)
         ].copy()
-        filtered[self.embedding_column] = filtered[self.embedding_column].astype(str)
+        available_embeddings[self.embedding_column] = available_embeddings[
+            self.embedding_column
+        ].astype(str)
 
-        vectors: dict[str, np.ndarray] = {}
-        for _, row in filtered.iterrows():
-            item_id = row[self.embedding_column]
-            vector = row[feature_columns].to_numpy(dtype=np.float64)
+        vectors = {}
+        for item_row in available_embeddings.to_dict("records"):
+            item_id = item_row[self.embedding_column]
+            vector = np.array(
+                [item_row[column_name] for column_name in feature_columns],
+                dtype=np.float64,
+            )
             norm = np.linalg.norm(vector)
             if norm > 0:
                 vectors[item_id] = vector / norm
 
         self.item_vectors = vectors
         self.candidate_items = list(vectors.keys())
-        self.item_index = {
-            item_id: index for index, item_id in enumerate(self.candidate_items)
-        }
+        self.item_index = {item_id: index for index, item_id in enumerate(self.candidate_items)}
         self.item_matrix = np.vstack([vectors[item_id] for item_id in self.candidate_items])
         return self
 
@@ -247,8 +242,7 @@ class ContentKNNRecommender(BaseRecommender):
         ranked = sorted(scores.items(), key=lambda pair: pair[1], reverse=True)
         return [item_id for item_id, _ in ranked[:k]]
 
-
-@dataclass(slots=True)
+@dataclass
 class HybridKNNRecommender(BaseRecommender):
     cf_model: ItemKNNCFRecommender
     content_model: ContentKNNRecommender
